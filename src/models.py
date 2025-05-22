@@ -1,13 +1,13 @@
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import String, Boolean, Table, Column, ForeignKey, Enum  
-from sqlalchemy.orm import Mapped, mapped_column, relationship 
-from typing import List  
+from sqlalchemy import String, Boolean, Table, Column, ForeignKey, Enum
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from typing import List
 
 db = SQLAlchemy()
 
 user_likes_post = Table(
     "user_likes_post",
-    db.Model.metadata, 
+    db.Model.metadata,
     Column("user_id", ForeignKey("user.id"), primary_key=True),
     Column("post_id", ForeignKey("post.id"), primary_key=True),
 )
@@ -22,15 +22,27 @@ class User(db.Model):
     is_active: Mapped[bool] = mapped_column(Boolean(), nullable=False)
 
     posts: Mapped[List["Post"]] = relationship(
-        "Post", back_populates='user')  
+        "Post", back_populates='user')
     liked_posts: Mapped[List["Post"]] = relationship(
         "Post", secondary=user_likes_post, back_populates="liked_by")
+    followers: Mapped[List["Follower"]] = relationship(
+        "Follower", foreign_keys="[Follower.user_to_id]", back_populates="user_to")
+    following: Mapped[List["Follower"]] = relationship(
+        "Follower", foreign_keys="[Follower.user_from_id]", back_populates="user_from")
 
 
 class Follower(db.Model):
     __tablename__ = 'follower'
-    user_from_id: Mapped[int] = mapped_column(primary_key=True)
-    user_to_id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_from_id: Mapped[int] = mapped_column(
+        ForeignKey("user.id"), nullable=False)
+    user_to_id: Mapped[int] = mapped_column(
+        ForeignKey("user.id"), nullable=False)
+
+    user_from: Mapped["User"] = relationship(
+        "User", foreign_keys=[user_from_id], back_populates="following")
+    user_to: Mapped["User"] = relationship(
+        "User", foreign_keys=[user_to_id], back_populates="followers")
 
 
 class Post(db.Model):
@@ -73,5 +85,3 @@ def serialize(self):
         "email": self.email,
         # do not serialize the password, its a security breach
     }
-
-
